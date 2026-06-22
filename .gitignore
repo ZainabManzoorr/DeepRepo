@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+
+# Poetry
+.venv/
+
+# Data (VERY IMPORTANT for RAG projects)
+data/
+repos/
+
+# OS
+.DS_Store
