@@ -1,24 +1,27 @@
 class QueryExpander:
 
     EXPANSIONS = {
-        "login": [
-            "authentication",
-            "signin",
-            "user login"
-        ],
 
-        "jwt": [
-            "token",
-            "authentication",
-            "bearer token"
-        ],
+    "authentication": [
+        "login",
+        "signin",
+        "credential verification",
+        "password check",
+        "user authentication"
+    ],
 
-        "database": [
-            "db",
-            "storage",
-            "repository"
-        ]
-    }
+    "login": [
+        "authentication",
+        "signin",
+        "user login"
+    ],
+
+    "jwt": [
+        "token",
+        "bearer token",
+        "authentication"
+    ]
+}
 
     def expand(self, query):
 

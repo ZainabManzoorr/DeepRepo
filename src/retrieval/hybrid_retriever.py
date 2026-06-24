@@ -5,7 +5,6 @@ class HybridRetriever:
         chroma_store,
         bm25_store
     ):
-
         self.chroma = chroma_store
         self.bm25 = bm25_store
 
@@ -27,7 +26,7 @@ class HybridRetriever:
 
         combined = []
 
-        # Chroma results
+        # Chroma Results
         docs = vector_results["documents"][0]
         metas = vector_results["metadatas"][0]
 
@@ -38,15 +37,42 @@ class HybridRetriever:
             combined.append(
                 {
                     "chunk": doc,
-                    **meta
+                    "file": meta.get("file", ""),
+                    "function": meta.get("function", ""),
+                    "class_name": meta.get("class_name", "")
                 }
             )
 
-        # BM25 results
+        # BM25 Results
         for chunk in bm25_results:
 
             combined.append(
-                chunk.__dict__
+                {
+                    "chunk": chunk.chunk,
+                    "file": chunk.file,
+                    "function": chunk.function,
+                    "class_name": chunk.class_name
+                }
             )
 
-        return combined[:k]
+        # Deduplicate
+        seen = set()
+        unique_chunks = []
+
+        for chunk in combined:
+
+            key = (
+                chunk["file"],
+                chunk.get("function", ""),
+                chunk["chunk"]
+            )
+
+            if key not in seen:
+
+                seen.add(key)
+
+                unique_chunks.append(
+                    chunk
+                )
+
+        return unique_chunks[:k]
