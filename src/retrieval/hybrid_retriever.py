@@ -14,62 +14,85 @@ class HybridRetriever:
         k=20
     ):
 
-        vector_results = self.chroma.search(
-            query,
-            top_k=10
+        # -------------------------
+        # Vector Search
+        # -------------------------
+        vector_results = (
+            self.chroma.search(
+                query=query,
+                top_k=10
+            )
         )
 
-        bm25_results = self.bm25.search(
-            query,
-            k=10
+        # -------------------------
+        # BM25 Search
+        # -------------------------
+        bm25_results = (
+            self.bm25.search(
+                query=query,
+                k=10
+            )
         )
 
         combined = []
 
+        # -------------------------
         # Chroma Results
-        docs = vector_results["documents"][0]
-        metas = vector_results["metadatas"][0]
+        # Already normalized
+        # -------------------------
+        combined.extend(
+            vector_results
+        )
 
-        for doc, meta in zip(
-            docs,
-            metas
-        ):
-            combined.append(
-                {
-                    "chunk": doc,
-                    "file": meta.get("file", ""),
-                    "function": meta.get("function", ""),
-                    "class_name": meta.get("class_name", "")
-                }
-            )
-
+        # -------------------------
         # BM25 Results
+        # -------------------------
         for chunk in bm25_results:
 
             combined.append(
                 {
                     "chunk": chunk.chunk,
                     "file": chunk.file,
-                    "function": chunk.function,
-                    "class_name": chunk.class_name
+                    "function": (
+                        chunk.function
+                        or ""
+                    ),
+                    "class_name": (
+                        chunk.class_name
+                        or ""
+                    )
                 }
             )
 
+        # -------------------------
         # Deduplicate
+        # -------------------------
         seen = set()
+
         unique_chunks = []
 
         for chunk in combined:
 
             key = (
-                chunk["file"],
-                chunk.get("function", ""),
-                chunk["chunk"]
+                chunk.get(
+                    "file",
+                    ""
+                ),
+                chunk.get(
+                    "function",
+                    ""
+                ),
+                chunk.get(
+                    "chunk",
+                    ""
+                )
             )
 
             if key not in seen:
 
-                seen.add(key)
+                seen.add(
+                    key
+                )
 
                 unique_chunks.append(
                     chunk
