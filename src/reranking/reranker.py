@@ -1,4 +1,5 @@
 from sentence_transformers import CrossEncoder
+import re
 
 
 class Reranker:
@@ -28,6 +29,37 @@ class Reranker:
             pairs
         )
 
+        # -------------------------
+        # Filename Boosting
+        # -------------------------
+        file_match = re.findall(
+            r"\w+\.py",
+            query.lower()
+        )
+
+        if file_match:
+
+            target_file = file_match[0]
+
+            boosted_scores = []
+
+            for chunk, score in zip(chunks, scores):
+
+                file_name = chunk.get(
+                    "file",
+                    ""
+                ).lower()
+
+                if target_file in file_name:
+                    score += 10
+
+                boosted_scores.append(score)
+
+            scores = boosted_scores
+
+        # -------------------------
+        # Ranking
+        # -------------------------
         ranked = sorted(
             zip(chunks, scores),
             key=lambda x: x[1],
