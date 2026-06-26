@@ -4,6 +4,27 @@ import networkx as nx
 
 class GraphBuilder:
 
+    # Ignore common library/framework calls
+    IGNORE_CALLS = {
+        "route",
+        "jsonify",
+        "cursor",
+        "execute",
+        "executemany",
+        "fetchone",
+        "fetchall",
+        "commit",
+        "rollback",
+        "close",
+        "connect",
+        "cursor",
+        "add",
+        "append",
+        "print",
+        "len",
+        "open"
+    }
+
     def __init__(self):
         self.graph = nx.DiGraph()
 
@@ -21,44 +42,56 @@ class GraphBuilder:
 
         for node in ast.walk(tree):
 
-            # ------------------------
-            # Function Definitions
-            # ------------------------
-            if isinstance(node, ast.FunctionDef):
+            if not isinstance(node, ast.FunctionDef):
+                continue
 
-                function_name = node.name
+            function_name = node.name
+
+            self.graph.add_node(
+                function_name,
+                file=file_path,
+                type="function"
+            )
+
+            for child in ast.walk(node):
+
+                if not isinstance(child, ast.Call):
+                    continue
+
+                called_function = None
+
+                # -------------------------
+                # foo()
+                # -------------------------
+                if isinstance(child.func, ast.Name):
+
+                    called_function = child.func.id
+
+                # -------------------------
+                # db.get_user()
+                # model.predict()
+                # conn.commit()
+                # -------------------------
+                elif isinstance(child.func, ast.Attribute):
+
+                    called_function = child.func.attr
+
+                if not called_function:
+                    continue
+
+                # Ignore noisy framework/database calls
+                if called_function in self.IGNORE_CALLS:
+                    continue
 
                 self.graph.add_node(
-                    function_name,
-                    file=file_path,
+                    called_function,
                     type="function"
                 )
 
-                # ------------------------
-                # Function Calls
-                # ------------------------
-                for child in ast.walk(node):
-
-                    if isinstance(child, ast.Call):
-
-                        if isinstance(
-                            child.func,
-                            ast.Name
-                        ):
-
-                            called_function = (
-                                child.func.id
-                            )
-
-                            self.graph.add_node(
-                                called_function,
-                                type="function"
-                            )
-
-                            self.graph.add_edge(
-                                function_name,
-                                called_function
-                            )
+                self.graph.add_edge(
+                    function_name,
+                    called_function
+                )
 
     def get_graph(self):
 
