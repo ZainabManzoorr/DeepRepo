@@ -1,8 +1,8 @@
-# DeepRepo
+# RepoMind
 
 > An AI-powered Code Intelligence System that understands repositories beyond keyword search.
 
-DeepRepo is a Retrieval-Augmented Generation (RAG) system designed specifically for software repositories. Instead of treating code as plain text, it combines semantic search, lexical search, AST-based code understanding, and dependency graphs to retrieve contextually relevant code across an entire project.
+RepoMind is a Retrieval-Augmented Generation (RAG) system designed specifically for software repositories. Instead of treating code as plain text, it combines semantic search, lexical search, AST-based code understanding, and dependency graphs to retrieve contextually relevant code across an entire project.
 
 The goal is to move from **"searching code"** to **"understanding code."**
 
@@ -164,7 +164,7 @@ Vector Database
 
 ## Example Queries
 
-DeepRepo can answer repository-level questions such as:
+RepoMind can answer repository-level questions such as:
 
 * Explain the login flow.
 * Where is JWT generated?
@@ -176,7 +176,7 @@ DeepRepo can answer repository-level questions such as:
 
 ---
 
-## Why DeepRepo?
+## Why RepoMind?
 
 Traditional RAG systems retrieve isolated text chunks, often missing the relationships between files and functions.
 
@@ -229,4 +229,4 @@ python main.py
 
 ## Future Vision
 
-DeepRepo aims to evolve from a retrieval system into an **AI Software Engineering Assistant** capable of understanding large codebases, tracing execution flows, answering architectural questions, generating documentation, and assisting developers with debugging, refactoring, and code exploration.
+RepoMind aims to evolve from a retrieval system into an **AI Software Engineering Assistant** capable of understanding large codebases, tracing execution flows, answering architectural questions, generating documentation, and assisting developers with debugging, refactoring, and code exploration.
