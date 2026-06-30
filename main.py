@@ -17,8 +17,8 @@ from src.llm.llm import LLM
 
 from src.graph.graph_builder import GraphBuilder
 from src.graph.graph_retriever import GraphRetriever
-
-
+from src.graph.flow_retriever import FlowRetriever
+from src.graph.ast_parser import ASTParser
 def main():
 
     # -------------------------
@@ -89,7 +89,32 @@ def main():
     graph_retriever = (
         GraphRetriever(graph)
     )
+    
+    
+    ast_parser = ASTParser()
 
+    print("\nAST PARSER OUTPUT\n")
+
+    for document in documents:
+
+       if not document.path.endswith(".py"):
+           continue
+
+       metadata = ast_parser.parse(
+           document.path,
+           document.content
+    )
+
+       print("=" * 60)
+       print(f"FILE: {metadata['file']}")
+       print(f"Imports: {metadata['imports']}")
+       print(f"Classes: {metadata['classes']}")
+       print(f"Functions: {metadata['functions']}")
+       print(f"Methods: {metadata['methods']}")
+       print(f"Decorators: {metadata['decorators']}")
+       print(f"Inheritance: {metadata['inheritance']}")
+       print(f"Docstrings: {metadata['docstrings']}")
+    
     # -------------------------
     # Chunking
     # -------------------------
@@ -146,6 +171,11 @@ def main():
             chroma_store=chroma_store,
             bm25_store=bm25_store
         )
+    )
+    
+    flow_retriever = FlowRetriever(
+        graph_retriever=graph_retriever,
+        hybrid_retriever=hybrid_retriever
     )
 
     reranker = Reranker()
@@ -231,7 +261,71 @@ def main():
         print(
             f"After Filtering: {len(retrieved_chunks)} chunks"
         )
-
+        
+        # -------------------------
+        # Graph Augmentation
+        # -------------------------
+        
+        if "function" in filters:
+            
+            function_name = filters["function"]
+            
+            print("\nGRRAPH RELATIONSHIPS\n")
+            
+            graph_retriever.explain_relationships(
+                function_name
+            )
+            
+            flow_chunks = (
+                flow_retriever.retrieve_flow(
+                    entry_function=function_name,
+                    depth=3,
+                    chunks_per_node=2
+                )
+            )
+            
+            print(f"\nAdded {len(flow_chunks)} graph chunks")
+            
+            retrieved_chunks.extend(
+                flow_chunks
+            )
+        # -------------------------
+        # Deduplicate
+        # -------------------------
+        
+        seen = set()
+        
+        unique_chunks = []
+        
+        for chunk in retrieved_chunks:
+            
+            key = (
+                chunk.get(
+                "file",
+                ""
+            ),
+                chunk.get(
+                    "function",
+                    ""
+            ),
+                chunk.get(
+                    "chunk",
+                    ""
+            )
+            )
+            if key not in seen:
+                seen.add(
+                    key
+                )
+                
+                unique_chunks.append(
+                    chunk
+                )
+        retrieved_chunks = (
+            unique_chunks
+        )
+        print(f"Final Context Chunks:{len(retrieved_chunks)}")
+            
         # -------------------------
         # Empty Results
         # -------------------------
@@ -243,23 +337,7 @@ def main():
 
             continue
 
-        # -------------------------
-        # Graph Context
-        # -------------------------
-        if (
-            "function"
-            in filters
-        ):
-
-            print(
-                "\nGRAPH RELATIONSHIPS\n"
-            )
-
-            graph_retriever.explain_relationships(
-                filters[
-                    "function"
-                ]
-            )
+        
 
         # -------------------------
         # Reranking

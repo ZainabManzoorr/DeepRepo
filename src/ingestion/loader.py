@@ -1,6 +1,6 @@
 import os
 
-from src.config import (
+from src.utils.config import (
     SUPPORTED_EXTENSIONS,
     IGNORED_DIRECTORIES,
 )
