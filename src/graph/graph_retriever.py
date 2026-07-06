@@ -3,142 +3,119 @@ class GraphRetriever:
     def __init__(self, graph):
         self.graph = graph
 
-    def get_related_nodes(
-        self,
-        node,
-        depth=1
-    ):
+    def get_related_nodes(self, node, depth=1):
 
         if node not in self.graph:
             return []
 
-        visited = set()
+        related = set()
         current = {node}
 
         for _ in range(depth):
-
             next_nodes = set()
 
             for n in current:
-
                 for neighbor in self.graph.successors(n):
-
-                    if neighbor not in visited:
-
-                        visited.add(neighbor)
-                        next_nodes.add(neighbor)
+                    related.add(neighbor)
+                    next_nodes.add(neighbor)
 
             current = next_nodes
 
-        return list(visited)
+        return list(related)
 
-    def get_internal_nodes(
-        self,
-        node,
-        depth=1
-    ):
-        """
-        Return only functions that are defined
-        inside the repository.
-        """
-
-        related = self.get_related_nodes(
-            node,
-            depth
-        )
-
-        internal = []
-
-        for func in related:
-
-            data = self.graph.nodes.get(
-                func,
-                {}
-            )
-
-            if data.get("file"):
-
-                internal.append(func)
-
-        return internal
-
-    def get_callers(
-        self,
-        node
-    ):
-        """
-        Functions that call the given node.
-        """
+    # -----------------------------
+    # NEW: Resolve file locations
+    # -----------------------------
+    def resolve_node(self, node):
 
         if node not in self.graph:
-            return []
+            return {
+                "name": node,
+                "file": "external",
+                "type": "unknown"
+            }
 
-        return list(
-            self.graph.predecessors(node)
-        )
+        data = self.graph.nodes[node]
 
-    def explain_relationships(
-        self,
-        node
-    ):
+        return {
+            "name": node,
+            "file": data.get("file", "unknown"),
+            "type": data.get("type", "function")
+        }
 
-        if node not in self.graph:
+    # -----------------------------
+    # Show relationships WITH files
+    # -----------------------------
+    def explain_relationships(self, node):
 
-            print(
-                f"\n'{node}' not found in graph."
-            )
-
-            return []
+        related = self.get_related_nodes(node)
 
         print(f"\n{node} calls:\n")
 
-        internal = self.get_internal_nodes(
-            node
-        )
-
+        internal = []
         external = []
 
-        for func in self.get_related_nodes(node):
+        for r in related:
 
-            if func not in internal:
+            info = self.resolve_node(r)
 
-                external.append(func)
+            if info["file"] == "external":
+                external.append(info["name"])
+            else:
+                internal.append(info)
 
-        if internal:
+        print("Internal Functions:")
+        for item in internal:
+            print(f"  -> {item['name']} ({item['file']})")
 
-            print("Internal Functions:")
+        print("\nExternal/Library Calls:")
+        for item in external:
+            print(f"  -> {item}")
 
-            for func in internal:
+        return related
 
-                file = self.graph.nodes[func].get(
-                    "file",
-                    ""
-                )
+    # -----------------------------
+    # NEW: Flow-aware output
+    # -----------------------------
+    def build_execution_flow(self, node, depth=3):
 
-                print(
-                    f"  -> {func} ({file})"
-                )
+        visited = set()
+        flow = []
 
-        if external:
+        current = [(node, 0)]
 
-            print("\nExternal/Library Calls:")
+        while current:
+            func, level = current.pop(0)
 
-            for func in external:
+            if func in visited or level > depth:
+                continue
 
-                print(
-                    f"  -> {func}"
-                )
+            visited.add(func)
 
-        callers = self.get_callers(node)
+            info = self.resolve_node(func)
 
-        if callers:
+            flow.append({
+                "function": func,
+                "file": info["file"],
+                "level": level
+            })
 
-            print("\nCalled By:")
+            for child in self.graph.successors(func):
+                current.append((child, level + 1))
 
-            for caller in callers:
+        return flow
 
-                print(
-                    f"  <- {caller}"
-                )
+    # -----------------------------
+    # Pretty print flow
+    # -----------------------------
+    def print_flow(self, node, depth=3):
 
-        return internal
+        flow = self.build_execution_flow(node, depth)
+
+        print("\nEXECUTION FLOW\n")
+
+        for item in flow:
+            indent = "  " * item["level"]
+            print(f"{indent}→ {item['function']} ({item['file']})")
+
+        return flow
