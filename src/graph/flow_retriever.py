@@ -1,85 +1,99 @@
 class FlowRetriever:
 
-    def __init__(
-        self,
-        graph_retriever,
-        hybrid_retriever
-    ):
+    def __init__(self, graph_retriever, hybrid_retriever, symbol_table=None):
         self.graph_retriever = graph_retriever
         self.hybrid_retriever = hybrid_retriever
+        self.symbol_table = symbol_table or {}
 
-    def retrieve_flow(
-        self,
-        entry_function,
-        depth=3,
-        chunks_per_node=2
-    ):
-        """
-        Retrieve the execution flow beginning
-        from an entry function.
+    # -----------------------------
+    # Resolve function → real symbol
+    # -----------------------------
+    def resolve_symbol(self, function_name):
 
-        Example:
+        if not self.symbol_table:
+            return None
 
-        login
-            ↓
-        get_user
-            ↓
-        get_connection
-        """
+        return self.symbol_table.get(function_name)
 
-        # -------------------------
-        # Find all related functions
-        # -------------------------
-        flow_nodes = (
-            self.graph_retriever.get_related_nodes(
-                entry_function,
-                depth=depth
-            )
-        )
+    # -----------------------------
+    # Core flow builder
+    # -----------------------------
+    def retrieve_flow(self, entry_function, depth=3, chunks_per_node=2):
 
-        # Include the starting function
-        flow_nodes.insert(
-            0,
-            entry_function
-        )
+        visited = set()
+        flow_chunks = []
 
-        print("\nEXECUTION FLOW\n")
+        queue = [(entry_function, 0)]
 
-        for node in flow_nodes:
+        while queue:
 
-            print(f" -> {node}")
+            func, level = queue.pop(0)
 
-        # -------------------------
-        # Retrieve chunks
-        # -------------------------
-        all_chunks = []
+            if func in visited or level > depth:
+                continue
 
-        seen = set()
+            visited.add(func)
 
-        for node in flow_nodes:
+            # -----------------------------
+            # 1. Resolve symbol across files
+            # -----------------------------
+            symbol_info = self.resolve_symbol(func)
 
-            results = (
-                self.hybrid_retriever.search(
-                    node,
-                    k=chunks_per_node
-                )
+            # fallback if not in symbol table
+            if symbol_info:
+                file_path = symbol_info["file"]
+                symbol_type = symbol_info["type"]
+            else:
+                file_path = "unknown"
+                symbol_type = "external"
+
+            # -----------------------------
+            # 2. Retrieve code chunks for this node
+            # -----------------------------
+            query = f"{func} {file_path}"
+
+            retrieved = self.hybrid_retriever.search(
+                query,
+                k=chunks_per_node
             )
 
-            for chunk in results:
+            for chunk in retrieved:
+                chunk["flow_level"] = level
+                chunk["flow_node"] = func
+                chunk["resolved_file"] = file_path
+                chunk["symbol_type"] = symbol_type
 
-                key = (
-                    chunk["file"],
-                    chunk.get("function", ""),
-                    chunk["chunk"]
-                )
+                flow_chunks.append(chunk)
 
-                if key not in seen:
+            # -----------------------------
+            # 3. Expand graph neighbors
+            # -----------------------------
+            neighbors = self.graph_retriever.get_related_nodes(
+                func,
+                depth=1
+            )
 
-                    seen.add(key)
-                    all_chunks.append(chunk)
+            for n in neighbors:
+                queue.append((n, level + 1))
 
-        print(
-            f"\nRetrieved {len(all_chunks)} flow chunks"
-        )
+        return flow_chunks
 
-        return all_chunks
+    # -----------------------------
+    # Debug view (very important)
+    # -----------------------------
+    def debug_flow(self, entry_function, depth=3):
+
+        flow = self.retrieve_flow(entry_function, depth)
+
+        print("\nFLOW RETRIEVAL (SYMBOL-AWARE)\n")
+
+        for c in flow:
+
+            print(
+                f"[{c.get('flow_level')}] "
+                f"{c.get('flow_node')} → "
+                f"{c.get('resolved_file')} → "
+                f"{c.get('symbol_type')}"
+            )
+
+        return flow
