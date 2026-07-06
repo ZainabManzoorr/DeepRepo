@@ -17,7 +17,6 @@ class GraphBuilder:
         "rollback",
         "close",
         "connect",
-        "cursor",
         "add",
         "append",
         "print",
@@ -25,8 +24,12 @@ class GraphBuilder:
         "open"
     }
 
-    def __init__(self):
+    def __init__(
+        self,
+        symbol_table=None
+    ):
         self.graph = nx.DiGraph()
+        self.symbol_table = symbol_table
 
     def build_python_graph(
         self,
@@ -42,7 +45,10 @@ class GraphBuilder:
 
         for node in ast.walk(tree):
 
-            if not isinstance(node, ast.FunctionDef):
+            if not isinstance(
+                node,
+                ast.FunctionDef
+            ):
                 continue
 
             function_name = node.name
@@ -53,40 +59,73 @@ class GraphBuilder:
                 type="function"
             )
 
+            # -------------------------
+            # Inspect every function call
+            # -------------------------
             for child in ast.walk(node):
 
-                if not isinstance(child, ast.Call):
+                if not isinstance(
+                    child,
+                    ast.Call
+                ):
                     continue
 
                 called_function = None
 
-                # -------------------------
                 # foo()
-                # -------------------------
-                if isinstance(child.func, ast.Name):
+                if isinstance(
+                    child.func,
+                    ast.Name
+                ):
 
-                    called_function = child.func.id
+                    called_function = (
+                        child.func.id
+                    )
 
-                # -------------------------
                 # db.get_user()
-                # model.predict()
-                # conn.commit()
-                # -------------------------
-                elif isinstance(child.func, ast.Attribute):
+                elif isinstance(
+                    child.func,
+                    ast.Attribute
+                ):
 
-                    called_function = child.func.attr
+                    called_function = (
+                        child.func.attr
+                    )
 
                 if not called_function:
                     continue
 
-                # Ignore noisy framework/database calls
                 if called_function in self.IGNORE_CALLS:
                     continue
 
-                self.graph.add_node(
-                    called_function,
-                    type="function"
-                )
+                # -------------------------
+                # Resolve through Symbol Table
+                # -------------------------
+                symbol = None
+
+                if self.symbol_table:
+
+                    symbol = (
+                        self.symbol_table.lookup(
+                            called_function
+                        )
+                    )
+
+                if symbol:
+
+                    self.graph.add_node(
+                        called_function,
+                        file=symbol["file"],
+                        type=symbol["type"],
+                        line=symbol["line"]
+                    )
+
+                else:
+
+                    self.graph.add_node(
+                        called_function,
+                        type="external"
+                    )
 
                 self.graph.add_edge(
                     function_name,
