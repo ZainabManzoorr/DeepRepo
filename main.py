@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 import os
 
+from src.graph import symbol_table
 from src.ingestion.loader import RepositoryLoader
 from src.chunking.chunker import CodeChunker
 
@@ -16,9 +17,11 @@ from src.prompt.prompt_builder import PromptBuilder
 from src.llm.llm import LLM
 
 from src.graph.graph_builder import GraphBuilder
+from src.graph.symbol_table import SymbolTable
 from src.graph.graph_retriever import GraphRetriever
 from src.graph.flow_retriever import FlowRetriever
 from src.graph.ast_parser import ASTParser
+
 def main():
 
     # -------------------------
@@ -53,7 +56,13 @@ def main():
     # -------------------------
     # Build Dependency Graph
     # -------------------------
-    graph_builder = GraphBuilder()
+   
+    
+    symbol_table = SymbolTable()
+    
+    ast_parser = ASTParser(
+    symbol_table=symbol_table
+    )
 
     for document in documents:
 
@@ -61,59 +70,56 @@ def main():
             ".py"
         ):
 
-            graph_builder.build_python_graph(
+            ast_parser.parse(
                 document.path,
                 document.content
             )
+    print("\nSYMBOL TABLE\n")
+
+    for name, info in symbol_table.all_symbols().items():
+      print(name)
+      print(f"  File : {info['file']}")
+      print(f"  Type : {info['type']}")
+      print(f"  Line : {info['line']}\n")
+    
+    
+    graph_builder = GraphBuilder(
+    symbol_table=symbol_table
+)
+    for document in documents:
+        if document.path.endswith(".py"):
+
+          graph_builder.build_python_graph(
+            document.path,
+            document.content
+        )
 
     graph = graph_builder.get_graph()
 
-    print(
-        f"\nGraph Nodes: {graph.number_of_nodes()}"
-    )
-
-    print(
-        f"Graph Edges: {graph.number_of_edges()}"
-    )
-
-    print(
-        "\nDEPENDENCY GRAPH\n"
-    )
+      
+    print("\nDEPENDENCY GRAPH\n")
 
     for source, target in graph.edges():
-
+        
+        node = graph.nodes[target]
+        
         print(
-            f"{source} ---> {target}"
-        )
+        f"{source}"
+        f" ---> "
+        f"{target}"
+        f" [{node.get('type')}]"
+        f" ({node.get('file','External')})"
+    )
+        
 
     graph_retriever = (
         GraphRetriever(graph)
     )
     
     
-    ast_parser = ASTParser()
+    
 
-    print("\nAST PARSER OUTPUT\n")
-
-    for document in documents:
-
-       if not document.path.endswith(".py"):
-           continue
-
-       metadata = ast_parser.parse(
-           document.path,
-           document.content
-    )
-
-       print("=" * 60)
-       print(f"FILE: {metadata['file']}")
-       print(f"Imports: {metadata['imports']}")
-       print(f"Classes: {metadata['classes']}")
-       print(f"Functions: {metadata['functions']}")
-       print(f"Methods: {metadata['methods']}")
-       print(f"Decorators: {metadata['decorators']}")
-       print(f"Inheritance: {metadata['inheritance']}")
-       print(f"Docstrings: {metadata['docstrings']}")
+    
     
     # -------------------------
     # Chunking
