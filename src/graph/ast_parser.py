@@ -4,12 +4,15 @@ import ast
 class ASTParser(ast.NodeVisitor):
 
     def __init__(self, symbol_table=None):
-        super().__init__()
+        
 
         self.symbol_table = symbol_table
         self.current_class = None
         self.result = {}
-
+        
+        print("\nAST Parser Initialized")
+        print(f"Symbol Table: {self.symbol_table}")
+    
     def parse(
         self,
         file_path,
@@ -28,9 +31,10 @@ class ASTParser(ast.NodeVisitor):
         }
 
         self.current_class = None
-
+        print(f"Parsing {file_path}")
         try:
             tree = ast.parse(code)
+            print("AST built successfully")
 
         except SyntaxError:
             return self.result
@@ -116,6 +120,7 @@ class ASTParser(ast.NodeVisitor):
     # -----------------------------------
 
     def visit_FunctionDef(self, node):
+        print("Visited function:", node.name)
 
         if self.current_class:
 
@@ -128,6 +133,7 @@ class ASTParser(ast.NodeVisitor):
             )
 
             if self.symbol_table:
+                print("Adding symbol:", node.name)
                 self.symbol_table.add_symbol(
                     name=method_name,
                     file=self.result["file"],
