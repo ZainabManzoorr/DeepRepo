@@ -34,4 +34,13 @@ class SymbolTable:
   def __len__(self):
     return len(self.symbols)
   
+  def resolve_function_file(self, function_name: str):
+    """
+    Return file where function is defined
+    """
+    symbol = self.symbols.get(function_name)
+    if symbol:
+        return symbol["file"]
+    return None
+  
 print("\nSYMBOL TABLE")
