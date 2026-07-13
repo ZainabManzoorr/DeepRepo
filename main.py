@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
 import os
 
-from src.graph import symbol_table
 from src.ingestion.loader import RepositoryLoader
 from src.chunking.chunker import CodeChunker
 
@@ -75,6 +74,7 @@ def main():
                 document.content
             )
     print("\nSYMBOL TABLE\n")
+    print(symbol_table.all_symbols())
 
     for name, info in symbol_table.all_symbols().items():
       print(name)
@@ -103,23 +103,21 @@ def main():
         
         node = graph.nodes[target]
         
-        print(
-        f"{source}"
-        f" ---> "
-        f"{target}"
-        f" [{node.get('type')}]"
-        f" ({node.get('file','External')})"
-    )
+        symbol_type = node.get("type", "external")
+        file_path = node.get("file", "External")
+        
+    print(
+        f"{source} ---> {target}"
+        f" [{symbol_type}]"
+        f" ({file_path})"
+        )
+    
         
 
-    graph_retriever = (
-        GraphRetriever(graph)
+    graph_retriever = GraphRetriever(
+       graph=graph,
+       symbol_table=symbol_table
     )
-    
-    
-    
-
-    
     
     # -------------------------
     # Chunking
@@ -181,7 +179,8 @@ def main():
     
     flow_retriever = FlowRetriever(
         graph_retriever=graph_retriever,
-        hybrid_retriever=hybrid_retriever
+        hybrid_retriever=hybrid_retriever,
+        symbol_table=symbol_table
     )
 
     reranker = Reranker()
@@ -252,6 +251,8 @@ def main():
                 query
             )
         )
+        
+        filters = metadata_filter.resolve_file_filter(filters, symbol_table)
 
         print(
             f"Detected Filters: {filters}"
