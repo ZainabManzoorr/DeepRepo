@@ -58,34 +58,32 @@ class MetadataFilter:
     # -------------------------
     # Detect Filters
     # -------------------------
-    def detect(
-        self,
-        query: str
-    ):
+    def resolve_file_filter(self, filters, symbol_table):
+       """
+      Convert function-based query into real file mapping
+      """
 
-        filters = {}
+       if "file" in filters:
 
-        file_name = self.extract_file(
-            query
-        )
+         file_query = filters["file"]
+         
+         files = {
+             info['file']
+             for info in symbol_table.all_symbols().values()
+         }
 
-        if file_name:
+        # if user asked login.py but it doesn't exist
+       if not any(path.endswith(requested) for path in files):
 
-            filters["file"] = file_name
+          candidate = file_query.replace(".py", "")
 
-        function_name = (
-            self.extract_function(
-                query
-            )
-        )
+          resolved = symbol_table.resolve_function_file(candidate)
 
-        if function_name:
+       if resolved:
+            filters.pop("file")
+            filters["function"] = candidate
 
-            filters[
-                "function"
-            ] = function_name
-
-        return filters
+       return filters
 
     # -------------------------
     # Apply Filter
